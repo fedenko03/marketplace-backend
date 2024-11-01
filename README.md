@@ -177,23 +177,35 @@ sudo systemctl restart nginx
 
 - Apply migrations:
 
-```bash
+  ```bash
   python manage.py migrate
-```
+  ```
 
 - Create a superuser for the Django admin panel:
 
-```bash
+  ```bash
   python manage.py createsuperuser
-```
+  ```
 
-- Run the server to ensure setup is working:
+### 9. Run the Project
 
-```bash
-  python manage.py runserver
-```
+To run the project with all configurations:
 
+- Start MongoDB:
 
+  ```bash
+  sudo systemctl start mongod
+  ```
+
+- Ensure Gunicorn is running through Supervisor:
+
+  ```bash
+  sudo supervisorctl start gunicorn
+  ```
+
+- Access the application through the IP address or domain set up in Nginx.
+
+The project should now be live on your server and accessible at `http://<your-server-ip>` or your specified domain.
 
 
 
