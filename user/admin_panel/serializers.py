@@ -1,9 +1,18 @@
 from rest_framework import serializers
 
 from backend import settings
+from user.admin_panel.models import Log
 from user.catalog.models import Category, Product
 from user.models import User
 from user.order.models import Order, OrderItem
+
+
+class LogSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+
+    class Meta:
+        model = Log
+        fields = ['id', 'user', 'action', 'model_name', 'object_id', 'timestamp', 'details']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -55,6 +64,12 @@ class ProductSerializer(serializers.ModelSerializer):
         return None
 
 
+class UserSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username']
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_description = serializers.CharField(source='product.description', read_only=True)
@@ -67,6 +82,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+    user = UserSummarySerializer(read_only=True)
     status = serializers.ChoiceField(choices=Order.STATUS_CHOICES, default='created')
     items = OrderItemSerializer(many=True, read_only=True)
 

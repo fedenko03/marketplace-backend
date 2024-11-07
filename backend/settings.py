@@ -28,7 +28,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
-BASE_URL = 'http://ip'
+BASE_URL = 'http://188.94.156.53'
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
@@ -144,6 +144,20 @@ DATABASES = {
         }
     }
 }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'djongo',
+#         'NAME': 'FinalDB',
+#         'ENFORCE_SCHEMA': False,
+#         'CLIENT': {
+#             'host': 'mongodb+srv://admin:admin@finaldb.mwxuw.mongodb.net/?retryWrites=true&w=majority&appName=FinalDB',
+#             'username': 'admin',
+#             'password': 'admin',
+#         }
+#     }
+# }
 
 
 # Password validation

@@ -1,6 +1,7 @@
 import random
+from collections import Counter
 
-from django.db.models import Max
+from django.db.models import Max, Count
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -8,10 +9,16 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.views import APIView
 
-from .models import Product, UserProductInteraction
-from .serializers import ProductSerializer, UserProductInteractionSerializer
+from .models import Product, UserProductInteraction, Category
+from .serializers import ProductSerializer, UserProductInteractionSerializer, CategorySerializer
 from .filters import ProductFilter
 from .pagination import CustomPagination
+
+
+class CategoryListView(generics.ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = []
 
 
 class ProductListView(APIView):
@@ -110,7 +117,6 @@ class UserInteractionView(generics.CreateAPIView):
 class LikedProductsView(generics.ListAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = CustomPagination
 
     def get_queryset(self):
         liked_products = UserProductInteraction.objects.filter(
@@ -122,7 +128,6 @@ class LikedProductsView(generics.ListAPIView):
 class ViewedProductsView(generics.ListAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = CustomPagination
 
     def get_queryset(self):
         user = self.request.user
@@ -146,29 +151,56 @@ class RecommendationView(APIView):
     def get(self, request):
         user = request.user
 
-        liked_categories = list(UserProductInteraction.objects.filter(
-            user=user,
-            interaction_type=UserProductInteraction.LIKE
-        ).values_list('product__category', flat=True).distinct())
+        interactions = UserProductInteraction.objects.filter(user=user).order_by('-created_at')
+        category_weight = Counter()
+        for index, interaction in enumerate(interactions):
+            try:
+                category_id = interaction.product.category_id
+            except Product.DoesNotExist:
+                continue
 
-        viewed_categories = list(UserProductInteraction.objects.filter(
-            user=user,
-            interaction_type=UserProductInteraction.VIEW
-        ).values_list('product__category', flat=True).distinct())
+            if interaction.interaction_type in [UserProductInteraction.LIKE, UserProductInteraction.VIEW]:
+                weight = max(1, len(interactions) - index)
+                category_weight[category_id] += weight
 
-        category_ids = list(set(liked_categories + viewed_categories))
+        sorted_categories = [cat_id for cat_id, _ in category_weight.most_common()]
 
-        viewed_product_ids = list(UserProductInteraction.objects.filter(
+        viewed_product_ids = set(UserProductInteraction.objects.filter(
             user=user,
             interaction_type=UserProductInteraction.VIEW
         ).values_list('product_id', flat=True).distinct())
 
-        recommended_products = Product.objects.filter(category_id__in=category_ids).exclude(id__in=viewed_product_ids)
+        recommended_products = []
+        for category_id in sorted_categories:
+            try:
+                products_in_category = Product.objects.filter(category_id=category_id).exclude(
+                    id__in=viewed_product_ids)
+            except Product.DoesNotExist:
+                continue
 
-        recommended_products = list(recommended_products)
-        random.shuffle(recommended_products)
+            popular_products = (UserProductInteraction.objects
+                                .filter(product__in=products_in_category)
+                                .exclude(user=user)
+                                .values('product')
+                                .annotate(interaction_count=Count('product'))
+                                .order_by('-interaction_count')[:5])
+
+            popular_product_ids = [item['product'] for item in popular_products]
+            recommended_products.extend(Product.objects.filter(id__in=popular_product_ids))
+
+            if len(recommended_products) >= 10:
+                break
+
+        if len(recommended_products) < 10:
+            for category_id in sorted_categories:
+                additional_products = Product.objects.filter(category_id=category_id).exclude(id__in=viewed_product_ids)
+                recommended_products.extend(additional_products)
+
+                if len(recommended_products) >= 10:
+                    break
 
         recommended_products = recommended_products[:10]
+        random.shuffle(recommended_products)
 
         serializer = ProductSerializer(recommended_products, many=True, context={'request': request})
         return Response(serializer.data)
