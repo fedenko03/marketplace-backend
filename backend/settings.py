@@ -28,7 +28,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
-BASE_URL = 'http://188.94.156.53'
+BASE_URL = 'http://url.com'
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
@@ -137,9 +137,9 @@ DATABASES = {
         'NAME': 'FinalDB',
         'ENFORCE_SCHEMA': False,
         'CLIENT': {
-            'host': 'mongodb://admin:admin@localhost:27017/FinalDB',
+            'host': 'mongodb://admin:passw@localhost:27017/FinalDB',
             'username': 'admin',
-            'password': 'admin',
+            'password': 'passw',
             'authSource': 'FinalDB'
         }
     }
